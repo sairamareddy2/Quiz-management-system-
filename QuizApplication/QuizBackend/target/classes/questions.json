@@ -1,0 +1,92 @@
+[
+  {
+    "questionText": "What is the main principle of Object-Oriented Programming that bundles data and methods?",
+    "options": "Encapsulation;Inheritance;Polymorphism;Abstraction",
+    "correctAnswerIndex": 0,
+    "category": "Java"
+  },
+  {
+    "questionText": "Which keyword is used to prevent a method from being overridden in a subclass?",
+    "options": "static;final;abstract;private",
+    "correctAnswerIndex": 1,
+    "category": "Java"
+  },
+  {
+    "questionText": "What is the root interface of the Java Collection hierarchy?",
+    "options": "List;Set;Collection;Map",
+    "correctAnswerIndex": 2,
+    "category": "Java"
+  },
+  {
+    "questionText": "Which data structure does a `HashMap` in Java internally use?",
+    "options": "Linked List;Balanced Tree;Hash Table;Stack",
+    "correctAnswerIndex": 2,
+    "category": "Java"
+  },
+  {
+    "questionText": "What does 'JPA' stand for?",
+    "options": "Java Process API;Java Python Adapter;Java Persistence API;Java Project A",
+    "correctAnswerIndex": 2,
+    "category": "Java"
+  },
+  {
+    "questionText": "What keyword is used to define a function in Python?",
+    "options": "def;func;function;define",
+    "correctAnswerIndex": 0,
+    "category": "Python"
+  },
+  {
+    "questionText": "Which data type in Python is immutable and ordered?",
+    "options": "List;Dictionary;Set;Tuple",
+    "correctAnswerIndex": 3,
+    "category": "Python"
+  },
+  {
+    "questionText": "What is the output of `print(2 ** 3)` in Python?",
+    "options": "6;8;16;5",
+    "correctAnswerIndex": 1,
+    "category": "Python"
+  },
+  {
+    "questionText": "Which library is commonly used for data analysis in Python?",
+    "options": "NumPy;TensorFlow;Pandas;Requests",
+    "correctAnswerIndex": 2,
+    "category": "Python"
+  },
+  {
+    "questionText": "What does 'PEP 8' refer to?",
+    "options": "A specific Python error code;The Python 8 official release;The Python style guide;A performance enhancement protocol",
+    "correctAnswerIndex": 2,
+    "category": "Python"
+  },
+  {
+    "questionText": "In what year did the French Revolution begin?",
+    "options": "1776;1789;1812;1848",
+    "correctAnswerIndex": 1,
+    "category": "History"
+  },
+  {
+    "questionText": "Who was the first Emperor of Rome?",
+    "options": "Julius Caesar;Augustus;Nero;Constantine",
+    "correctAnswerIndex": 1,
+    "category": "History"
+  },
+  {
+    "questionText": "The Magna Carta was signed in what year?",
+    "options": "1066;1215;1492;1607",
+    "correctAnswerIndex": 1,
+    "category": "History"
+  },
+  {
+    "questionText": "What ancient civilization built the city of Machu Picchu?",
+    "options": "The Aztecs;The Mayans;The Inca;The Egyptians",
+    "correctAnswerIndex": 2,
+    "category": "History"
+  },
+  {
+    "questionText": "The 'Code of Hammurabi' is from which ancient civilization?",
+    "options": "Greek;Persian;Egyptian;Babylonian",
+    "correctAnswerIndex": 3,
+    "category": "History"
+  }
+]

@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Quiz Application</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* *** FIX: All views are now hidden by default. *** */
+        /* The .active class is no longer used. JS will control the display. */
+        .view { display: none; }
+        .option-btn.correct { background-color: #22c55e; border-color: #16a34a; color: white; }
+        .option-btn.incorrect { background-color: #ef4444; border-color: #dc2626; color: white; }
+        .option-btn.neutral-correct { background-color: #d1fae5; border-color: #22c55e; }
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, .1);
+            border-left-color: #4f46e5;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen">
+    <div class="container w-full max-w-4xl p-4 md:p-8">
+        
+        <!-- Main Application Container -->
+        <div id="app-container" class="bg-white rounded-2xl shadow-xl min-h-[700px] w-full p-6 md:p-10 flex flex-col" style="display: none;">
+            <!-- App Header -->
+            <div id="app-header" class="flex justify-between items-center pb-4 border-b border-gray-200" style="display: none;">
+                <h1 class="text-2xl font-bold text-gray-800">My Knowledge Base</h1>
+                <button id="logout-button" class="text-sm font-medium text-blue-600 hover:text-blue-800 transition">Logout</button>
+            </div>
+
+            <!-- Loading View -->
+            <div id="loading-view" class="view flex-grow flex flex-col justify-center items-center">
+                <div class="spinner"></div>
+                <p class="text-gray-600 mt-4">Loading...</p>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view flex-grow flex flex-col justify-center">
+                <div class="w-full max-w-lg mx-auto text-center">
+                    <h2 class="text-3xl font-bold text-gray-900 mb-6">Welcome Back!</h2>
+                    <p class="text-lg text-gray-600 mb-8">Select a category to start your review session.</p>
+                    <div id="stats-container" class="mb-8 p-6 bg-gray-50 rounded-lg">
+                        <h3 class="text-xl font-semibold text-gray-800 mb-6">Your Progress</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-base font-medium text-green-700">Mastered</span>
+                                    <span id="stats-mastered" class="text-sm font-medium text-green-700">0</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="bar-mastered" class="bg-green-500 h-2.5 rounded-full" style="width: 0%"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-base font-medium text-yellow-700">Learning</span>
+                                    <span id="stats-learning" class="text-sm font-medium text-yellow-700">0</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="bar-learning" class="bg-yellow-400 h-2.5 rounded-full" style="width: 0%"></div></div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-base font-medium text-gray-700">Unseen</span>
+                                    <span id="stats-unseen" class="text-sm font-medium text-gray-700">0</span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2.5"><div id="bar-unseen" class="bg-gray-400 h-2.5 rounded-full" style="width: 0%"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-6">
+                        <label for="category-select" class="block mb-2 text-sm font-medium text-gray-900">Choose a category:</label>
+                        <select id="category-select" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                            <option value="-- All Categories --">-- All Categories --</option>
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <button id="start-quiz-button" class="w-full bg-blue-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-blue-700 transition shadow-md">Start Review Session</button>
+                        <button id="manage-questions-button" class="w-full bg-gray-700 text-white font-bold py-3 px-6 rounded-lg hover:bg-gray-800 transition shadow-md">Manage Questions</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quiz View -->
+            <div id="quiz-view" class="view flex-grow flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <button id="quiz-back-button" class="text-sm font-medium text-blue-600 hover:text-blue-800">&larr; Back to Dashboard</button>
+                    <span id="question-counter" class="text-sm font-medium text-gray-600">Question 1/5</span>
+                </div>
+                <div class="flex-grow flex items-center justify-center">
+                    <div class="w-full text-center">
+                        <p id="question-text" class="text-2xl md:text-3xl font-semibold text-gray-800 mb-10 min-h-[100px]">Loading question...</p>
+                        <div id="options-container" class="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manager View -->
+            <div id="manager-view" class="view flex-grow flex flex-col">
+                <div class="flex justify-between items-center mb-6">
+                    <button id="manager-back-button" class="text-sm font-medium text-blue-600 hover:text-blue-800">&larr; Back to Dashboard</button>
+                    <button id="add-new-question-button" class="bg-green-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-green-700 transition">Add New Question</button>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-900 mb-4">Question Manager</h2>
+                <div class="flex-grow overflow-auto border rounded-lg">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Question</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mastery</th>
+                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="manager-table-body" class="bg-white divide-y divide-gray-200"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Authentication Container -->
+        <div id="auth-container" class="bg-white rounded-2xl shadow-xl w-full max-w-md p-8" style="display: none;">
+            <div class="mb-6 border-b border-gray-200">
+                <nav class="flex -mb-px" aria-label="Tabs">
+                    <button id="login-tab" class="tab-button w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-blue-600 border-blue-600">Login</button>
+                    <button id="register-tab" class="tab-button w-1/2 py-4 px-1 text-center border-b-2 font-medium text-sm text-gray-500 border-transparent hover:text-gray-700 hover:border-gray-300">Register</button>
+                </nav>
+            </div>
+            <div id="auth-error" class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4" style="display: none;"></div>
+            <div id="login-view" class="view">
+                <form id="login-form">
+                    <div class="mb-4">
+                        <label for="login-username" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="login-username" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-6">
+                        <label for="login-password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="login-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700 transition">Login</button>
+                </form>
+            </div>
+            <div id="register-view" class="view">
+                <form id="register-form">
+                    <div class="mb-4">
+                        <label for="register-username" class="block text-sm font-medium text-gray-700">Username</label>
+                        <input type="text" id="register-username" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div class="mb-6">
+                        <label for="register-password" class="block text-sm font-medium text-gray-700">Password</label>
+                        <input type="password" id="register-password" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <button type="submit" class="w-full bg-green-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-green-700 transition">Create Account</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Add/Edit Question -->
+    <div id="question-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50" style="display: none;">
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6">
+            <h2 id="modal-title" class="text-2xl font-bold mb-4">Add New Question</h2>
+            <form id="question-form">
+                <input type="hidden" id="modal-question-id">
+                <div class="mb-4">
+                    <label for="modal-question-text" class="block text-sm font-medium text-gray-700">Question Text</label>
+                    <textarea id="modal-question-text" rows="3" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div class="mb-4">
+                    <label for="modal-category" class="block text-sm font-medium text-gray-700">Category</label>
+                    <input type="text" id="modal-category" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Options (Select correct answer)</label>
+                    <div id="modal-options" class="space-y-2 mt-2"></div>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" id="modal-cancel-button" class="bg-gray-200 text-gray-800 font-medium py-2 px-4 rounded-lg hover:bg-gray-300 transition">Cancel</button>
+                    <button type="submit" class="bg-blue-600 text-white font-medium py-2 px-4 rounded-lg hover:bg-blue-700 transition">Save Question</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // --- API Base URL ---
+        const API_BASE = 'http://localhost:8080/api';
+
+        // --- DOM Elements ---
+        const authContainer = document.getElementById('auth-container');
+        const appContainer = document.getElementById('app-container');
+        const appHeader = document.getElementById('app-header');
+        const authError = document.getElementById('auth-error');
+        const views = {
+            'login': document.getElementById('login-view'),
+            'register': document.getElementById('register-view'),
+            'loading': document.getElementById('loading-view'),
+            'dashboard': document.getElementById('dashboard-view'),
+            'quiz': document.getElementById('quiz-view'),
+            'manager': document.getElementById('manager-view'),
+        };
+        const tabs = {
+            'login': document.getElementById('login-tab'),
+            'register': document.getElementById('register-tab'),
+        };
+        const modal = document.getElementById('question-modal');
+        const modalForm = document.getElementById('question-form');
+
+        // --- Global State ---
+        let currentQuizQuestions = [];
+        let currentQuestionIndex = 0;
+        let currentScore = 0;
+
+        // --- --- --- --- --- --- --- --- --- ---
+        // --- CORE AUTH & API FUNCTIONS     ---
+        // --- --- --- --- --- --- --- --- --- ---
+        
+        async function fetchWithAuth(url, options = {}) {
+            console.log(`fetchWithAuth: Fetching ${url}`); // Debug log
+            const token = localStorage.getItem('jwtToken');
+            const headers = { 'Content-Type': 'application/json', ...options.headers };
+            
+            if (!token) {
+                 console.error("fetchWithAuth: No token found! Logging out.");
+                 logout();
+                 throw new Error('Authorization Failed: No token.');
+            }
+            
+            headers['Authorization'] = `Bearer ${token}`; 
+            
+            try {
+                const response = await fetch(API_BASE + url, { ...options, headers });
+                
+                if (response.status === 401 || response.status === 403) {
+                    console.error(`fetchWithAuth: Auth Error ${response.status} for ${url}. Logging out.`);
+                    logout(); 
+                    throw new Error('Authorization Failed');
+                }
+                
+                if (!response.ok) {
+                    let errorData;
+                    try { errorData = await response.json(); } catch (e) { errorData = { message: `API Error: ${response.status}` }; }
+                     console.error(`fetchWithAuth: API Error ${response.status} for ${url}. Message:`, errorData.message || 'Unknown');
+                    throw new Error(errorData.message || 'An unknown error occurred.');
+                }
+                
+                if (response.status === 204) {
+                     console.log(`fetchWithAuth: Success (204 No Content) for ${url}`);
+                    return; 
+                }
+                
+                const data = await response.json();
+                console.log(`fetchWithAuth: Success for ${url}`);
+                return data;
+
+            } catch (error) {
+                 console.error(`fetchWithAuth: Network or processing error for ${url}:`, error);
+                 if (error.message !== 'Authorization Failed') {
+                    // Only show this if the server is truly down
+                    if (error instanceof TypeError) { // TypeError often means network failed
+                         showError(authError, `Network Error: Could not connect to the server. Is it running?`);
+                    }
+                 }
+                 throw error;
+            }
+        }
+
+        async function login(username, password) {
+            console.log("Attempting login...");
+            try {
+                hideError(authError);
+                const response = await fetch(API_BASE + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const data = await response.json();
+                if (!response.ok) { 
+                     console.error("Login failed:", data.message || 'Unknown reason');
+                    throw new Error(data.message || 'Login failed'); 
+                }
+                if (!data.token) { 
+                     console.error("Login error: No token received.");
+                    throw new Error('Login failed: No token received from server.'); 
+                }
+                console.log("Login successful, token received.");
+                localStorage.setItem('jwtToken', data.token);
+                await loadAndShowApp();
+            } catch (error) {
+                 console.error("Login function caught error:", error);
+                showError(authError, error.message);
+            }
+        }
+
+        async function register(username, password) {
+             console.log("Attempting registration...");
+            try {
+                hideError(authError);
+                const response = await fetch(API_BASE + '/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                const text = await response.text(); 
+                if (!response.ok) {
+                    let errorMessage = text;
+                    try { const data = JSON.parse(text); errorMessage = data.message || data; } catch (e) {}
+                     console.error("Registration failed:", errorMessage || 'Unknown reason');
+                    throw new Error(errorMessage || 'Registration failed');
+                }
+                 console.log("Registration successful.");
+                alert('Registration successful! Please log in.');
+                showAuthView('login');
+            } catch (error) {
+                 console.error("Register function caught error:", error);
+                showError(authError, error.message);
+            }
+        }
+
+        function logout() {
+            console.log("Logging out.");
+            localStorage.removeItem('jwtToken');
+            showAuth();
+        }
+
+        // --- --- --- --- --- --- --- --- --- ---
+        // --- VIEW & STATE MANAGEMENT       ---
+        // --- --- --- --- --- --- --- --- --- ---
+
+        /**
+         * *** THIS IS THE FIX ***
+         * This function now directly controls the 'display' style property
+         * instead of relying on CSS classes, which avoids caching issues.
+         */
+        function showView(viewName) {
+            console.log("Showing view:", viewName);
+            // Hide all views
+            Object.values(views).forEach(v => v.style.display = 'none');
+            
+            // Show the active view
+            const viewElement = views[viewName];
+            if (viewElement) {
+                // App views use flexbox, auth views use block
+                if (['loading', 'dashboard', 'quiz', 'manager'].includes(viewName)) {
+                    viewElement.style.display = 'flex';
+                } else {
+                    viewElement.style.display = 'block';
+                }
+            } else {
+                 console.warn("showView: View not found -", viewName);
+            }
+        }
+
+        /**
+         * *** THIS IS THE FIX ***
+         * This function now also controls 'display' style property directly.
+         */
+        function showAuthView(viewName) {
+            console.log("Showing auth view:", viewName);
+            views.login.style.display = 'none';
+            views.register.style.display = 'none';
+            Object.values(tabs).forEach(t => t.classList.remove('text-blue-600', 'border-blue-600', 'text-gray-500', 'border-transparent'));
+            
+            if (viewName === 'login') {
+                views.login.style.display = 'block';
+                tabs.login.classList.add('text-blue-600', 'border-blue-600');
+                tabs.register.classList.add('text-gray-500', 'border-transparent');
+            } else if (viewName === 'register') {
+                views.register.style.display = 'block';
+                tabs.register.classList.add('text-blue-600', 'border-blue-600');
+                tabs.login.classList.add('text-gray-500', 'border-transparent');
+            } else {
+                console.warn("showAuthView: Unknown view -", viewName);
+                views.login.style.display = 'block'; // Default to login
+            }
+            hideError(authError);
+        }
+
+        async function loadAndShowApp() {
+            console.log("loadAndShowApp: Loading app data...");
+            authContainer.style.display = 'none';
+            appContainer.style.display = 'flex';
+            appHeader.style.display = 'flex';
+            showView('loading'); 
+            try {
+                // This Promise.all validates the token by fetching data
+                await Promise.all([ loadStats(), loadCategories() ]);
+                console.log("loadAndShowApp: Dashboard data loaded. Showing dashboard.");
+                showView('dashboard');
+            } catch (error) {
+                console.error('loadAndShowApp: Failed to load dashboard data. Error should have triggered logout:', error);
+                 // If the fetches failed (e.g., 403), fetchWithAuth will have called logout()
+                 // We must ensure the auth screen is visible if it isn't already.
+                 if (!authContainer.style.display || authContainer.style.display === 'none') {
+                    showAuth();
+                 }
+            }
+        }
+
+        function showAuth() {
+            console.log("showAuth: Displaying authentication container.");
+            authContainer.style.display = 'block';
+            appContainer.style.display = 'none';
+            appHeader.style.display = 'none';
+            showAuthView('login');
+        }
+
+        function showError(element, message) { 
+             console.log("Showing error:", message);
+            element.textContent = message; 
+            element.style.display = 'block'; 
+        }
+        function hideError(element) { 
+            element.style.display = 'none'; 
+        }
+
+        // --- --- --- --- --- --- --- --- --- ---
+        // --- DASHBOARD LOGIC               ---
+        // --- --- --- --- --- --- --- --- --- ---
+        async function loadDashboard() { 
+            console.log("loadDashboard: Fetching stats and categories...");
+            try {
+                // Renamed to avoid conflict, running sequentially to be safer
+                await loadStats();
+                await loadCategories();
+                console.log("loadDashboard: Stats and categories fetched successfully.");
+            } catch (error) {
+                 console.error("loadDashboard: Error fetching data:", error);
+                 throw error; // Propagate error up to loadAndShowApp
+            }
+        } 
+        
+        async function loadStats() {
+            try {
+                const stats = await fetchWithAuth('/stats'); 
+                const total = (stats.Mastered || 0) + (stats.Learning || 0) + (stats.Unseen || 0);
+                const totalOrOne = total === 0 ? 1 : total;
+                document.getElementById('stats-mastered').textContent = stats.Mastered || 0;
+                document.getElementById('stats-learning').textContent = stats.Learning || 0;
+                document.getElementById('stats-unseen').textContent = stats.Unseen || 0;
+                document.getElementById('bar-mastered').style.width = `${((stats.Mastered || 0) / totalOrOne) * 100}%`;
+                document.getElementById('bar-learning').style.width = `${((stats.Learning || 0) / totalOrOne) * 100}%`;
+                document.getElementById('bar-unseen').style.width = `${((stats.Unseen || 0) / totalOrOne) * 100}%`;
+            } catch (error) {
+                 console.error("loadStats: Failed -", error);
+                 throw error; // Propagate error
+            }
+        }
+        
+        async function loadCategories() {
+            try {
+                const categories = await fetchWithAuth('/categories'); 
+                const select = document.getElementById('category-select');
+                if (select) {
+                    select.innerHTML = '<option value="-- All Categories --">-- All Categories --</option>'; 
+                    categories.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category; option.textContent = category;
+                        select.appendChild(option);
+                    });
+                } else {
+                    console.error("loadCategories: Could not find category select element.");
+                }
+            } catch (error) {
+                 console.error("loadCategories: Failed -", error);
+                 throw error; // Propagate error
+            }
+        }
+
+        // --- --- --- --- --- --- --- --- --- ---
+        // --- QUIZ LOGIC                    ---
+        // --- --- --- --- --- --- --- --- --- ---
+        async function startQuiz() {
+            const categorySelect = document.getElementById('category-select');
+            const selectedCategory = categorySelect.value;
+            console.log(`startQuiz: Starting quiz for category: ${selectedCategory}`);
+            
+            let url = '/session/start';
+            if (selectedCategory && selectedCategory !== '-- All Categories --') {
+                url += `?category=${encodeURIComponent(selectedCategory)}`;
+            }
+            
+            try {
+                showView('loading'); 
+                console.log(`startQuiz: Fetching questions from ${url}`);
+                currentQuizQuestions = await fetchWithAuth(url); 
+                
+                if (!currentQuizQuestions || currentQuizQuestions.length === 0) {
+                     console.log("startQuiz: No questions received or empty array.");
+                    alert('No questions due for review in this category!');
+                    showView('dashboard'); 
+                    return;
+                }
+                
+                console.log(`startQuiz: Received ${currentQuizQuestions.length} questions.`);
+                currentQuestionIndex = 0;
+                currentScore = 0;
+                displayQuestion();
+                console.log("startQuiz: Showing quiz view.");
+                showView('quiz');
+                
+            } catch (error) {
+                console.error('startQuiz: Error starting quiz:', error);
+                 if (error.message !== 'Authorization Failed') {
+                    showView('dashboard'); 
+                 }
+            }
+        }
+        
+        function displayQuestion() {
+             console.log(`displayQuestion: Displaying question ${currentQuestionIndex + 1}`);
+            if (!currentQuizQuestions || currentQuizQuestions.length === 0 || currentQuestionIndex >= currentQuizQuestions.length) {
+                 console.error("displayQuestion: Invalid quiz state or index out of bounds.");
+                 alert("An error occurred loading the question. Returning to dashboard.");
+                 showView('dashboard');
+                 return;
+            }
+            
+            const q = currentQuizQuestions[currentQuestionIndex];
+             if (!q || !q.options) {
+                 console.error("displayQuestion: Question data is invalid:", q);
+                 alert("An error occurred loading the question data. Returning to dashboard.");
+                 showView('dashboard');
+                 return;
+             }
+
+            document.getElementById('question-counter').textContent = `Question ${currentQuestionIndex + 1}/${currentQuizQuestions.length}`;
+            document.getElementById('question-text').textContent = q.questionText;
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+            
+            const optionsArray = q.options ? q.options.split(';') : [];
+            if (optionsArray.length === 0) {
+                 console.error("displayQuestion: No options found for question:", q);
+            }
+
+            optionsArray.forEach((optionText, index) => {
+                const button = document.createElement('button');
+                button.textContent = optionText;
+                button.dataset.index = index;
+                button.className = 'option-btn w-full text-left p-4 border-2 border-gray-300 rounded-lg hover:bg-gray-100 transition';
+                button.onclick = () => submitAnswer(index);
+                optionsContainer.appendChild(button);
+            });
+             console.log(`displayQuestion: Question ${currentQuestionIndex + 1} displayed.`);
+        }
+        
+        async function submitAnswer(selectedIndex) {
+             console.log(`submitAnswer: User selected option ${selectedIndex} for question ${currentQuestionIndex + 1}`);
+            document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = true);
+            const q = currentQuizQuestions[currentQuestionIndex];
+            if (!q || q.id == null) {
+                 console.error("submitAnswer: Invalid question data or missing ID.");
+                 alert("Error submitting answer. Returning to dashboard.");
+                 showView('dashboard');
+                 return;
+            }
+
+            try {
+                // **NOTE:** The 'id' here is a String from MongoDB
+                 console.log(`submitAnswer: Sending answer for question ID ${q.id}`);
+                const result = await fetchWithAuth(`/answer/${q.id}`, { 
+                    method: 'POST',
+                    body: JSON.stringify({ selectedOption: selectedIndex })
+                });
+                
+                if (result == null || typeof result.isCorrect === 'undefined' || typeof result.correctIndex === 'undefined') {
+                    console.error("submitAnswer: Invalid response from server:", result);
+                    throw new Error("Received invalid response from server.");
+                }
+
+                 console.log(`submitAnswer: Answer processed. Correct: ${result.isCorrect}`);
+                const buttons = document.querySelectorAll('.option-btn');
+                buttons[selectedIndex].classList.add(result.isCorrect ? 'correct' : 'incorrect');
+                if (result.isCorrect) { 
+                    currentScore++; 
+                    console.log(`submitAnswer: Score is now ${currentScore}`);
+                } else { 
+                    buttons[result.correctIndex].classList.add('neutral-correct'); 
+                }
+
+                setTimeout(async () => {
+                    currentQuestionIndex++;
+                     console.log(`submitAnswer: Moving to next question index: ${currentQuestionIndex}`);
+                    if (currentQuestionIndex < currentQuizQuestions.length) {
+                        displayQuestion();
+                    } else {
+                         console.log(`submitAnswer: Quiz complete. Final score: ${currentScore}/${currentQuizQuestions.length}`);
+                        alert(`Quiz complete! You scored ${currentScore} / ${currentQuizQuestions.length}`);
+                        showView('loading');
+                        await loadDashboard();
+                        showView('dashboard');
+                    }
+                }, 1500);
+
+            } catch (error) {
+                console.error('submitAnswer: Error submitting answer:', error);
+                 if (error.message !== 'Authorization Failed') {
+                    alert(`Error submitting answer: ${error.message}`);
+                    document.querySelectorAll('.option-btn').forEach(btn => btn.disabled = false);
+                 }
+            }
+        }
+
+        // --- --- --- --- --- --- --- --- --- ---
+        // --- MANAGER LOGIC                 ---
+        // --- --- --- --- --- --- --- --- --- ---
+        async function loadManager() {
+            console.log("loadManager: Loading questions for manager...");
+            showView('loading');
+            try {
+                const questions = await fetchWithAuth('/questions'); 
+                const tableBody = document.getElementById('manager-table-body');
+                tableBody.innerHTML = ''; 
+                
+                if (!questions || questions.length === 0) {
+                     console.log("loadManager: No questions found.");
+                     tableBody.innerHTML = '<tr><td colspan="4" class="text-center p-6 text-gray-500">No questions found. Add one!</td></tr>';
+                } else {
+                     console.log(`loadManager: Rendering ${questions.length} questions.`);
+                    questions.forEach(q => {
+                        let masteryText, masteryColor, masteryBg;
+                        masteryText = 'Unknown'; masteryColor = 'text-gray-800'; masteryBg = 'bg-gray-100'; 
+                        if (q.masteryLevel === 0) { masteryText = 'Unseen'; masteryColor = 'text-gray-800'; masteryBg = 'bg-gray-100'; }
+                        else if (q.masteryLevel === 1) { masteryText = 'Learning'; masteryColor = 'text-yellow-800'; masteryBg = 'bg-yellow-100'; }
+                        else if (q.masteryLevel >= 2) { masteryText = 'Mastered'; masteryColor = 'text-green-800'; masteryBg = 'bg-green-100'; }
+                        
+                        const tr = document.createElement('tr');
+                        const questionTextDiv = document.createElement('div');
+                        questionTextDiv.className = 'text-sm text-gray-900';
+                        questionTextDiv.textContent = q.questionText || 'N/A';
+                        
+                        const categoryDiv = document.createElement('div');
+                        categoryDiv.className = 'text-sm text-gray-900';
+                        categoryDiv.textContent = q.category || 'N/A';
+
+                        tr.innerHTML = `
+                            <td class="px-6 py-4 whitespace-normal"></td>
+                            <td class="px-6 py-4 whitespace-nowrap"></td>
+                            <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${masteryBg} ${masteryColor}">${masteryText}</span></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                <button class="text-blue-600 hover:text-blue-900 edit-btn" data-id="${q.id}">Edit</button>
+                                <button class="text-red-600 hover:text-red-900 ml-4 delete-btn" data-id="${q.id}">Delete</button>
+                            </td>
+                        `;
+                        tr.children[0].appendChild(questionTextDiv);
+                        tr.children[1].appendChild(categoryDiv);
+
+                        tr.querySelector('.edit-btn').onclick = () => openModal(q);
+                        tr.querySelector('.delete-btn').onclick = () => deleteQuestion(q.id);
+
+                        tableBody.appendChild(tr);
+                    });
+                }
+                console.log("loadManager: Manager view ready.");
+                showView('manager');
+            } catch (error) {
+                console.error('loadManager: Error loading questions:', error);
+                 if (error.message !== 'Authorization Failed') {
+                    showView('dashboard');
+                    alert(`Failed to load questions: ${error.message}`);
+                 }
+            }
+        }
+        
+        function openModal(question = null) {
+            console.log("openModal:", question ? `Editing QID ${question.id}` : "Adding new question");
+            modalForm.reset();
+            const modalTitle = document.getElementById('modal-title');
+            const modalOptions = document.getElementById('modal-options');
+            modalOptions.innerHTML = '';
+
+            if (question) {
+                // Edit Mode
+                modalTitle.textContent = 'Edit Question';
+                document.getElementById('modal-question-id').value = question.id || '';
+                document.getElementById('modal-question-text').value = question.questionText || '';
+                document.getElementById('modal-category').value = question.category || '';
+                
+                const optionsArray = question.options ? question.options.split(';') : [];
+                optionsArray.forEach((opt, index) => {
+                    modalOptions.appendChild(createModalOption(index, opt, index === question.correctAnswerIndex));
+                });
+                 // Ensure 4 options are always present
+                 for (let i = optionsArray.length; i < 4; i++) {
+                     modalOptions.appendChild(createModalOption(i, '', false));
+                 }
+
+            } else {
+                // Add Mode
+                modalTitle.textContent = 'Add New Question';
+                document.getElementById('modal-question-id').value = '';
+                for (let i = 0; i < 4; i++) {
+                    modalOptions.appendChild(createModalOption(i, '', i === 0)); 
+                }
+            }
+            modal.style.display = 'flex';
+        }
+        
+        function createModalOption(index, value = '', isChecked = false) {
+            const div = document.createElement('div');
+            div.className = 'flex items-center';
+            const textInput = document.createElement('input');
+            textInput.type = 'text';
+            textInput.value = value;
+            textInput.required = true;
+            textInput.className = 'ml-3 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500';
+            
+            div.innerHTML = `
+                <input id="modal-option-radio-${index}" name="correctAnswer" type="radio" ${isChecked ? 'checked' : ''} value="${index}" class="h-4 w-4 text-blue-600 border-gray-300 focus:ring-blue-500">
+            `;
+            div.appendChild(textInput);
+            return div;
+        }
+
+        function closeModal() { 
+            console.log("Closing modal.");
+            modal.style.display = 'none'; 
+        }
+        
+        async function saveQuestion(event) {
+            event.preventDefault();
+            console.log("saveQuestion: Attempting to save...");
+            
+            const id = document.getElementById('modal-question-id').value;
+            const questionText = document.getElementById('modal-question-text').value.trim();
+            const category = document.getElementById('modal-category').value.trim();
+            
+            if (!questionText || !category) {
+                 alert('Question text and category cannot be empty.');
+                 return;
+            }
+
+            const options = [];
+            const optionInputs = modalForm.querySelectorAll('#modal-options input[type="text"]');
+            optionInputs.forEach(input => options.push(input.value.trim()));
+            
+            if (options.some(opt => opt === '')) {
+                alert('All option fields must be filled.');
+                return;
+            }
+             if (options.length !== 4) {
+                 alert('Exactly 4 options are required.');
+                 return;
+             }
+             
+            const correctRadio = modalForm.querySelector('input[name="correctAnswer"]:checked');
+            if (!correctRadio) {
+                alert('Please select a correct answer.');
+                return;
+            }
+            const correctAnswerIndex = parseInt(correctRadio.value, 10);
+            
+            const questionData = {
+                questionText,
+                options: options.join(';'),
+                correctAnswerIndex,
+                category
+            };
+             console.log("saveQuestion: Data prepared:", questionData, "ID:", id || 'New');
+
+            try {
+                if (id) {
+                     console.log(`saveQuestion: Updating question ID ${id}`);
+                    await fetchWithAuth(`/questions/${id}`, { 
+                        method: 'PUT',
+                        body: JSON.stringify(questionData)
+                    });
+                     console.log(`saveQuestion: Update successful for ID ${id}`);
+                } else {
+                     console.log("saveQuestion: Creating new question");
+                    await fetchWithAuth('/questions', { 
+                        method: 'POST',
+                        body: JSON.stringify(questionData)
+                    });
+                     console.log("saveQuestion: Creation successful");
+                }
+                closeModal();
+                // Refresh everything
+                await Promise.all([ loadManager(), loadCategories(), loadStats() ]);
+            } catch (error) {
+                console.error('saveQuestion: Error saving:', error);
+                alert(`Failed to save question: ${error.message}`);
+            }
+        }
+        
+        async function deleteQuestion(id) {
+            console.log(`deleteQuestion: Attempting to delete QID ${id}`);
+            if (confirm('Are you sure you want to delete this question? This is permanent.')) {
+                try {
+                    await fetchWithAuth(`/questions/${id}`, { method: 'DELETE' }); 
+                    console.log(`deleteQuestion: Deletion successful for QID ${id}`);
+                    // Refresh everything
+                    await Promise.all([ loadManager(), loadCategories(), loadStats() ]);
+                } catch (error) {
+                    console.error(`deleteQuestion: Error deleting QID ${id}:`, error);
+                    alert(`Failed to delete question: ${error.message}`);
+                }
+            } else {
+                 console.log(`deleteQuestion: Deletion cancelled for QID ${id}`);
+            }
+        }
+
+        // --- --- --- --- --- --- --- --- --- ---
+        // --- INITIALIZATION                ---
+        // --- --- --- --- --- --- --- --- --- ---
+        
+        function initAuthListeners() {
+            tabs.login.onclick = () => showAuthView('login');
+            tabs.register.onclick = () => showAuthView('register');
+            document.getElementById('login-form').onsubmit = (e) => {
+                e.preventDefault();
+                login(document.getElementById('login-username').value, document.getElementById('login-password').value);
+            };
+            document.getElementById('register-form').onsubmit = (e) => {
+                e.preventDefault();
+                register(document.getElementById('register-username').value, document.getElementById('register-password').value);
+            };
+        }
+        
+        function initAppListeners() {
+            document.getElementById('logout-button').onclick = logout;
+            document.getElementById('start-quiz-button').onclick = startQuiz;
+            document.getElementById('quiz-back-button').onclick = async () => {
+                showView('loading');
+                await loadDashboard();
+                showView('dashboard');
+            };
+            document.getElementById('manage-questions-button').onclick = () => { loadManager(); };
+            document.getElementById('manager-back-button').onclick = async () => {
+                showView('loading');
+                await loadDashboard();
+                showView('dashboard');
+            };
+            document.getElementById('add-new-question-button').onclick = () => openModal(null);
+            document.getElementById('modal-cancel-button').onclick = closeModal;
+            modalForm.onsubmit = saveQuestion;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+             console.log("DOM Loaded. Initializing application.");
+            initAuthListeners();
+            initAppListeners();
+            const token = localStorage.getItem('jwtToken');
+            if (token) {
+                 console.log("Token found. Validating and loading app...");
+                loadAndShowApp();
+            } else {
+                 console.log("No token found. Showing auth screen.");
+                showAuth();
+            }
+        });
+
+    </script>
+</body>
+</html>
+
